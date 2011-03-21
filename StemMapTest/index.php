@@ -22,14 +22,9 @@
             for (var region in sauObj) {
                 sau[region] = map.path(sauObj[region]);
             }
-            //sau["SA-02"] = map.path(sauObj["SA-02"]);
-            //sau["SA-4"] = map.path(sauObj["SA-4"]);
-            //sau["SA-07"] = map.path(sauObj["SA-07"]);
-            //sau["SA-08"] = map.path(sauObj["SA-08"]);
+
             for (var region in sau) {
-                //sau[region].translate(500, 300);
-                //sau[region].scale(2, 2);
-                //sau[region].rotate(-90);
+                sau[region].scale(6, 4, 600, 400);
             }
         };
         

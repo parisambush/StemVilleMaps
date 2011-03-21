@@ -1,13 +1,15 @@
 <?php
     $mapArray = array();
+    $isoCountryCode;
     $currentRegionCode;
 
     // This function parses an xml map file from stem containing gml data and creates an associative array
     // containing the iso-3166-2 region name paired with SVG path data for that region.
     function makeMapData(){
         global $mapArray;
+        global $isoCountryCode;
         // Input file for map.
-        $INPUT_FILE = 'SAU_1_MAP.xml';
+        $INPUT_FILE = 'SAU_2_MAP.xml';
         $parser = xml_parser_create();
 
         //Function to use at the start of an element. Used to get the ISO3166-2 name of each region.
@@ -28,6 +30,7 @@
         function char($parser,$data) {
               global $mapArray;
               global $currentRegionCode;
+              global $isoCountryCode;
               if (strlen($data) > 100){
                   /* Construct SVG path data (ex. M10 15L20 25Z). The M and the 10 15 mean "move to point (10, 15)",
                    * the L and the 20 25 means "draw a line from current point to this point, (10 15) to (20 25)" and
@@ -48,6 +51,8 @@
                       $strpos++;
                   }
                   $mapArray[$currentRegionCode] = $data;
+              } else if (substr($data, 4, 5) == "Level"){
+                  $isoCountryCode = substr($data, 0, 3);
               }
         }
 
@@ -67,21 +72,12 @@
                           // Even num of spaces delimit lon values.
                           $lon = $strBuffer;
                           $strBuffer = "";
-
                           // Conversion to xy coords, rounded to 6 decimal precision. The 1000 is a map scale factor.
                           // For sure there are better ways to do this.
                           $x = (180 + $lon) * (1000/360);
                           $x = round($x, 6);
                           $y = (90 - $lat) * (1000/180);
                           $y = round($y, 6);
-                          
-                          // I don't know why this one value is the only one messed up out of 100s of others.
-                          // Resultant latitude value is 54163 because buffer abruptly stops taking values, acting as if it read a space.
-                          if ($y < 1) {
-                            echo "wth?! <br />";
-                            echo "Y: ".$y."<br />";
-                            echo "lat: ".$lat."<br />";
-                          }
                           
                           // Attempt to normalize coords so that only positive values result.
                           if ($x < 0)
@@ -95,7 +91,7 @@
                           $lat = $strBuffer;
                           $whiteSpaceCt++;
                           $strBuffer = "";
-                      } else if (is_numeric(substr($data, $strpos, 1)) == 1 || substr($data, $strpos, 1) == "."){
+                      } else {
                           $strBuffer .= substr($data, $strpos, 1);
                       }
                       //echo "STRBUFF: ".$strBuffer."<br />";
@@ -119,8 +115,8 @@
         //Open xml file
         $mapFile = fopen($INPUT_FILE, 'r');
 
-        //Read data
-        while ($data=fread($mapFile,131072)) {
+        //Read data. The size value has to be big enought to read the massive map data.
+        while ($data=fread($mapFile, 1048576)) {
           xml_parse($parser,$data,feof($mapFile)) or
           die (sprintf("XML Error: %s at line %d",
           xml_error_string(xml_get_error_code($parser)),
@@ -130,12 +126,7 @@
         //Free the XML parser
         xml_parser_free($parser);
 
-        //echo "****NOW PRINTING MAP ARRAY DAT**** <br />";
-        //foreach ($mapArray as $key => $val){
-            //echo $key . ": " . $val. "<br /><br />";
-        //}
-
         fclose($mapFile);
-    }
-    //echo json_encode($mapArray);
+        echo "COUNTRYCODE: ".$isoCountryCode."<br />";
+    }   
 ?>
