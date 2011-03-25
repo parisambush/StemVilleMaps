@@ -32,7 +32,7 @@
 					//sau[r].translate(500,320);
 
                     sau[r].attr({fill: "#fff"});
-                    sau[r].node.onmouseover = function() { sau[r].animate({fill: "#FF0000"}, 5000, function() { sau[r].animate({fill: "#FFF"}, 3000); }); };
+                    //sau[r].node.onmouseover = function() { sau[r].animate({fill: "#FF0000"}, 5000, function() { sau[r].animate({fill: "#FFF"}, 3000); }); };
 					sau[r].node.onclick = function(evt) { 
 					    console.log(r); 
 					    console.log(evt);

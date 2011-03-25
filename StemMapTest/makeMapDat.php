@@ -2,11 +2,11 @@
     $mapArray = array();
     $isoCountryCode;
     $currentRegionCode;
-    $INPUT_FILE = 'JPN_2_MAP.xml';
+    $INPUT_FILE = 'SAU_2_MAP.xml';
 
     include 'getBaselineData.php';
     makeBaselineData();
-
+    
     echo "Baseline Data (NSEW): ".$maxNlat.", ".$minSlat.", ".$maxElon.", ".$minWlon."<br />";
 
     // Mercator projection test vars
@@ -44,31 +44,13 @@
 	        global $currentRegionCode;
 	        global $isoCountryCode;
 
-            global $maxNlat;
-            global $minSlat;
-            global $maxElon;
-            global $minWlon;
-	        
 	        if (strlen($data) > 50){
-	            /* Construct SVG path data (ex. M10 15L20 25Z). The M and the 10 15 mean "move to point (10, 15)",
-	             * the L and the 20 25 means "draw a line from current point to this point, (10 15) to (20 25)" and
-	             * the Z means close off the path.
+	            /* Construct SVG path data (ex. M10 15 20 25Z). The M and the 10 15 mean "move from point (10, 15)",
+	             * to (20 25) and so on". The Z means close off the path.
 	             */
                 //getBaselineLatLon($data);
 	            $data = latLonToXY($data);
 	            $data = "M".trim($data)."Z";
-	            $whiteSpaceCt = 0;
-	            $strpos = 0;
-	            $latLonToXY = "";
-	            while($strpos < strlen($data)){
-	                if (substr($data, $strpos, 1) == " " && $whiteSpaceCt == 1){
-	                    $data = substr_replace($data, "L", $strpos, 1);
-	                    $whiteSpaceCt = 0;
-	                } else if (substr($data, $strpos, 1) == " "){
-	                    $whiteSpaceCt++;
-	                }
-	                $strpos++;
-	            }
 	            $mapArray[$currentRegionCode] = $data;
 	        } else if (substr($data, 4, 5) == "Level"){
 	            $isoCountryCode = substr($data, 0, 3);
@@ -139,54 +121,32 @@
             global $minSlat;
             global $maxElon;
             global $minWlon;
-
+            
             $latLonToXY = "";
-            $lat = 0;
-            $lon = 0;
-            // Because the pos data in the gml files aren't always the same length, need a buffer to read diff lenghts.
-            $strBuffer = "";
-            $strpos = 0;
-            $whiteSpaceCt = 0;
-            while($strpos < strlen($data)){
- 	           if (substr($data, $strpos, 1) == " " && $whiteSpaceCt == 1){
-		           // Even num of spaces delimit lon values.
-		           $lon = $strBuffer;
-		           $strBuffer = "";
-		           // Conversion to xy coords, rounded to 6 decimal precision. The 1000 is a map scale factor.
-		           // For sure there are better ways to do this.
-                   
-		           //$x = (180 + $lon) ;
-		           //$x = round($x, 6);
-		           //$y = (90 - $lat) ;
-		           //$y = round($y, 6);
-         
-		           // Attempt to normalize coords so that only positive values result.
-		           //if ($x < 0)
-		               //$x = abs($x);
-		           //if ($y < 0)
-		               //$y = abs($y);
-
-                   $x = scaleLongitude($maxElon, $minWlon, $lon) * 1000;
-                   $y = scaleLatitude($minSlat, $maxNlat, $lat) * 700;
-		           $latLonToXY .= $x." ".$y." ";
-
+            $latLonArray = explode(" ", $data);
+            /*
+             * Coord data in GML files is stored with latitude first, then longitude. The loop below starts at the first
+             * longitude value at index 1, goes back to get the latitude value, then goes forward to get the next longitude value.
+             * Abusing the fact that the num of elements in GML data is always even.
+             */
+            for ($i = 1; $i < count($latLonArray); $i++){
+                if (fmod($i, 2) != 0){
+                    // Longitude
+                    $x = scaleLongitude($maxElon, $minWlon, $latLonArray[$i]) * 1000;
+                    $latLonToXY .= $x." ";
+                    $i -= 2;
+                } else {
+                    // Latitude
+                    $y = scaleLatitude($minSlat, $maxNlat, $latLonArray[$i]) * 700;
+                    $latLonToXY .= $y." ";
+                    $i += 2;
+                }
+            }
 				   //$totX = $totX + $x;
 				   //$xc++;
 				   //$totY = $totY + $y;
    				   //$yc++;
 
-		           $whiteSpaceCt = 0;
-	            } else if (substr($data, $strpos, 1) == " "){
-	               // Odd num of spaces delimits lat values.
-	               $lat = $strBuffer;
-	               $whiteSpaceCt++;
-	               $strBuffer = "";
-	            } else {
-	                $strBuffer .= substr($data, $strpos, 1);
-	            }
-	            //echo "STRBUFF: ".$strBuffer."<br />";
-	            $strpos++;
-	        }
             //echo "STR: ".$latLonToXY."<br />";
             //echo "$totX, count: $xc == ".$totX/$xc."<br/>";
             //echo $totY/$yc . "+";
@@ -220,6 +180,7 @@
 
         fclose($mapFile);
         echo "COUNTRYCODE: ".$isoCountryCode."<br />";
+        
     }
     
 

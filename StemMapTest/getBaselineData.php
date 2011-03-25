@@ -57,5 +57,6 @@
         xml_parser_free($parser);
 
         fclose($mapFile);
+
     }
 ?>
