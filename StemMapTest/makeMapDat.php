@@ -2,14 +2,16 @@
     $mapArray = array();
     $isoCountryCode;
     $currentRegionCode;
-    $INPUT_FILE = 'SAU_2_MAP.xml';
+    $INPUT_FILE = 'MEX_2_MAP.xml';
+    // Map scale constant
+    $MAP_SCALE = 600;
 
     include 'getBaselineData.php';
     makeBaselineData();
     
-    echo "Baseline Data (NSEW): ".$maxNlat.", ".$minSlat.", ".$maxElon.", ".$minWlon."<br />";
+    echo "FINAL Baseline Data (NSWE): ".$maxNlat.", ".$maxSlat.", ".$maxWlon.", ".$maxElon."<br />";
 
-    // Mercator projection test vars
+    //Mercator projection test vars
     //$maxNlat = 0;
     //$minSlat = 0;
     //$maxElon = 0;
@@ -30,7 +32,7 @@
           global $currentRegionCode;
           switch($element_name) {
             case "GML:POLYGON":
-                $mapArray[$element_attrs["GML:ID"]] = 0;
+                $mapArray[$element_attrs["GML:ID"]] = array();
                 $currentRegionCode = $element_attrs["GML:ID"];
             break;
           }
@@ -51,35 +53,12 @@
                 //getBaselineLatLon($data);
 	            $data = latLonToXY($data);
 	            $data = "M".trim($data)."Z";
-	            $mapArray[$currentRegionCode] = $data;
+                // Changed to make $mapArray look like: {"region_name": [path1, path2,...]}
+	            $mapArray[$currentRegionCode][] = $data;
 	        } else if (substr($data, 4, 5) == "Level"){
 	            $isoCountryCode = substr($data, 0, 3);
 	        }
         }
-
-        // Gets the highest and lowest lats and eastern and western most longs. Stores these in the max/min lat lon vars.
-        /*function getBaselineLatLon($data){
-            global $maxNlat;
-            global $minSlat;
-            global $maxElon;
-            global $minWlon;
-
-            $dataArray = explode(" ", $data);
-            for ($i = 0; $i < count($dataArray); $i++){
-                // even i's are lats, odds are lons
-                if (fmod($i, 2) == 0){
-                    if ($dataArray[$i] > 0 && $dataArray[$i] >= $maxNlat)
-                        $maxNlat = $dataArray[$i];
-                    else if ($dataArray[$i] < 0 && $dataArray[$i] <= $minSlat)
-                        $minSlat = $dataArray[$i];
-                } else {
-                    if ($dataArray[$i] > 0 && $dataArray[$i] >= $maxElon)
-                        $maxElon = $dataArray[$i];
-                    else if ($dataArray[$i] < 0 && $dataArray[$i] <= $minWlon)
-                        $minWlon = $dataArray[$i];
-                }
-            }
-        }*/
 
         // Steve's function for scaling latitudes
         function scaleLatitude($degreesS, $degreesN, $degreesP){
@@ -87,40 +66,32 @@
             $yN = 180/pi() * (2 * atan(exp($degreesN * pi()/180)) - pi()/2);
             $yP = 180/pi() * (2 * atan(exp($degreesP * pi()/180)) - pi()/2);
 
-            //Switched yS and yN below to fix upside down maps
-            $spread = $yS - $yN;
-            $yP = ($yP - $yN) * (1 / $spread);
-            return round($yP, 5);
+            $spread = $yN - $yS;
+            $yP = ($yP - $yS) * (1 / $spread);
+            return $yP;
         }
 
         // Steve's function for scaling longitudes
         function scaleLongitude($degreesE, $degreesW, $degreesP){
+        
+		  
             $spread = $degreesE - $degreesW;
-
-            if ($spread >= 180) {
-                $spread -= 360;
-                $degreesP = ($degreesP - $degreesE) * (-1 / $spread);
-                return round($degreesP, 5);
-            } else if ($spread <= -180)
-                $spread += 360;
-            
+			       
             $degreesP = ($degreesP - $degreesW) * (1 / $spread);
-            return round($degreesP, 5);
+            //echo "degreesP : ".$degreesP."<br />";
+            return $degreesP;
         }
 
         // Converts the lat and lon coords to cartesian xy coords. GML data is of form (lat, lon).
         // @return returns a string with the converted lat lon values.
         function latLonToXY($data) {
-            //$totX = 0;
-            //$xc = 0;
-            //$totY = 0;
-            //$yc = 0;
 
-            // Mercator data
+            // Mercator projection data
             global $maxNlat;
-            global $minSlat;
+            global $maxSlat;
             global $maxElon;
-            global $minWlon;
+            global $maxWlon;
+            global $MAP_SCALE;
             
             $latLonToXY = "";
             $latLonArray = explode(" ", $data);
@@ -132,24 +103,19 @@
             for ($i = 1; $i < count($latLonArray); $i++){
                 if (fmod($i, 2) != 0){
                     // Longitude
-                    $x = scaleLongitude($maxElon, $minWlon, $latLonArray[$i]) * 1000;
+                    $x = scaleLongitude($maxElon, $maxWlon, $latLonArray[$i]) * $MAP_SCALE;
+		    // echo "x : ".$x."<br />";
                     $latLonToXY .= $x." ";
                     $i -= 2;
                 } else {
                     // Latitude
-                    $y = scaleLatitude($minSlat, $maxNlat, $latLonArray[$i]) * 700;
+                    $y = scaleLatitude($maxNlat, $maxSlat, $latLonArray[$i]) * $MAP_SCALE;  //REVERSEING THE N AND S solved the UPSIDEDOWN PROBLEM
+		    // echo "y : ".$y."<br />";
                     $latLonToXY .= $y." ";
                     $i += 2;
                 }
             }
-				   //$totX = $totX + $x;
-				   //$xc++;
-				   //$totY = $totY + $y;
-   				   //$yc++;
 
-            //echo "STR: ".$latLonToXY."<br />";
-            //echo "$totX, count: $xc == ".$totX/$xc."<br/>";
-            //echo $totY/$yc . "+";
             return $latLonToXY;
         }
 
